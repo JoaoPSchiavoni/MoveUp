@@ -19,7 +19,8 @@ sem autenticação ou separação de dados por usuário nesta fase.
 Na pasta MoveUp:
 
 ```sh
-dotnet run --launch-profile http
+cp .env.example .env # Apenas na primeira configuração
+./scripts/run-local.sh
 ```
 
 A API atende em `http://localhost:5013`. A primeira inicialização aplica a migration
@@ -151,3 +152,12 @@ dart run tool/check_api.dart http://localhost:5013
 A última verificação usa o adapter real para criar, ler, editar e excluir uma
 ficha temporária. O catálogo não é modificado. Os testes da API usam banco isolado
 e não acessam os dados normais da aplicação.
+
+## Configuração privada
+
+`.env` é local e ignorado pelo Git. O script `scripts/run-local.sh` carrega seus
+valores; `dotnet run` executado diretamente não lê esse arquivo automaticamente.
+O `.env.example` contém somente valores públicos de exemplo. Senhas, tokens e
+chaves de serviços futuros devem ficar no ambiente do servidor ou no `.env`
+local, nunca nos arquivos versionados. Não compartilhe o conteúdo do `.env`.
+Bancos locais, certificados e arquivos de assinatura também estão ignorados.

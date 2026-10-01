@@ -9,3 +9,16 @@ TestResults/
 .env
 .env.*
 !.env.example
+
+# Local configuration, databases and signing credentials
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+*.pfx
+*.p12
+*.pem
+*.key
+*.jks
+*.keystore
+key.properties
+appsettings.*.local.json
