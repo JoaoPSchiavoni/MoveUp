@@ -1,0 +1,29 @@
+@MoveUp_HostAddress = http://localhost:5013
+
+GET {{MoveUp_HostAddress}}/api/exercicios
+Accept: application/json
+
+###
+GET {{MoveUp_HostAddress}}/api/treinos
+Accept: application/json
+
+###
+PUT {{MoveUp_HostAddress}}/api/treinos/11111111-1111-4111-8111-111111111111
+Content-Type: application/json
+
+{
+  "nome": "Peito + Tríceps",
+  "diaSemana": 1,
+  "exercicios": [
+    {
+      "exercicioId": "00000000-0000-4000-8000-000000000001",
+      "series": 4,
+      "repeticoes": 10,
+      "cargaInicial": 72.5,
+      "tempoDescanso": 90
+    }
+  ]
+}
+
+###
+DELETE {{MoveUp_HostAddress}}/api/treinos/11111111-1111-4111-8111-111111111111
