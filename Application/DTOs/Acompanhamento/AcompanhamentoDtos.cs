@@ -6,7 +6,7 @@ public record MetaDto(DateOnly Inicio, int Dias);
 public record ConfiguracaoDto(bool Ativado, string Fuso, DateOnly Hoje, DateOnly? Inicio,
     IReadOnlyList<RotinaDto> Rotinas, IReadOnlyList<MetaDto> Metas);
 public record SessaoDiaDto(Guid Id, string NomeTreino);
-public record DiaDto(DateOnly Data, string Estado, bool Planejado, IReadOnlyList<SessaoDiaDto> Sessoes);
+public record DiaDto(DateOnly Data, string Estado, bool Planejado, IReadOnlyList<SessaoDiaDto> Sessoes, bool OnFire = false);
 public record CalendarioDto(DateOnly Hoje, string Fuso, IReadOnlyList<DiaDto> Dias);
 public record SemanaDto(DateOnly Inicio, DateOnly Fim, int DiasTreinados, int Sessoes,
     int? Meta, int PlanejadosEncerrados, int PlanejadosCumpridos, double? Adesao,

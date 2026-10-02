@@ -52,7 +52,7 @@ public class SessaoService(ISessaoRepository sessions, ITreinoRepository workout
             await consistency.AssignDateAsync(session, ct);
             foreach (var item in workout.TreinoExercicios.OrderBy(e => e.Ordem))
             {
-                var exercise = new SessaoExercicio { SessaoTreinoId = id, Nome = item.Exercicio!.Nome,
+                var exercise = new SessaoExercicio { SessaoTreinoId = id, ExercicioOrigemId = item.ExercicioId, Nome = item.Exercicio!.Nome,
                     GrupoMuscular = item.Exercicio.GrupoMuscular, Ordem = item.Ordem, TempoDescanso = item.TempoDescanso };
                 for (var order = 0; order < item.Series; order++)
                     exercise.Series.Add(new SerieRealizada { SessaoExercicioId = exercise.Id, Ordem = order,

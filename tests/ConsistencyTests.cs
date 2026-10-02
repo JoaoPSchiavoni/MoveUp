@@ -40,6 +40,25 @@ public sealed class ConsistencyTests : IAsyncLifetime
         return session;
     }
     [Fact]
+    public async Task OnFireCrossesMonthsWithoutCountingDuplicateSessionsOrRestDays()
+    {
+        clock.Utc = new(2026, 9, 21, 12, 0, 0, TimeSpan.Zero);
+        await service.ConfigurarAsync(new("UTC", [1, 3, 5], 3), default);
+        foreach (var day in new[] {21, 23, 25, 28, 30})
+        {
+            clock.Utc = new(2026, 9, day, 12, 0, 0, TimeSpan.Zero);
+            await AddSession(clock.Utc.UtcDateTime);
+        }
+        await AddSession(clock.Utc.UtcDateTime.AddMinutes(40));
+        Assert.Equal(5, (await service.PainelAsync(default)).SequenciaAtual);
+        Assert.Equal(5, (await service.CalendarioAsync(2026, 9, default)).Dias.Count(d => d.OnFire));
+        clock.Utc = new(2026, 10, 1, 12, 0, 0, TimeSpan.Zero);
+        Assert.Equal(5, (await service.PainelAsync(default)).SequenciaAtual);
+        clock.Utc = new(2026, 10, 3, 12, 0, 0, TimeSpan.Zero);
+        Assert.Equal(0, (await service.PainelAsync(default)).SequenciaAtual);
+        Assert.Equal(5, (await service.CalendarioAsync(2026, 9, default)).Dias.Count(d => d.OnFire));
+    }
+    [Fact]
     public async Task ActivationBackfillsHistoryOnceAndCountsDaysInsteadOfSessions()
     {
         var before = new DateTime(2026, 10, 3, 1, 0, 0, DateTimeKind.Utc);

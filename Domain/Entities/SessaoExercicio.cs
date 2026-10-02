@@ -5,6 +5,8 @@ public class SessaoExercicio
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid SessaoTreinoId { get; set; }
     public SessaoTreino? SessaoTreino { get; set; }
+    // Snapshot identity survives catalog changes; legacy sessions remain null.
+    public Guid? ExercicioOrigemId { get; set; }
     public string Nome { get; set; } = "";
     public string GrupoMuscular { get; set; } = "";
     public int Ordem { get; set; }

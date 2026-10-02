@@ -113,13 +113,30 @@ public class AcompanhamentoService(MoveUpDbContext db, TimeProvider clock)
         var routines = await db.RotinaRevisoes.AsNoTracking().Where(r => r.Inicio <= end).OrderBy(r => r.Inicio).ToListAsync(ct);
         var sessions = await Completed.Where(s => s.DataPresenca >= start && s.DataPresenca <= end)
             .OrderBy(s => s.Inicio).Select(s => new { s.Id, s.NomeTreino, s.DataPresenca }).ToListAsync(ct);
+        var fire = new HashSet<DateOnly>();
+        if (config != null)
+        {
+            var allRoutines = await db.RotinaRevisoes.AsNoTracking().OrderBy(r => r.Inicio).ToListAsync(ct);
+            var presence = (await Presence(config.Inicio, today, ct)).ToHashSet();
+            var segment = new List<DateOnly>();
+            foreach (var day in Dates(config.Inicio, today))
+            {
+                if (!Planned(day, allRoutines)) continue;
+                if (presence.Contains(day))
+                {
+                    segment.Add(day);
+                    if (segment.Count >= 5) fire.UnionWith(segment);
+                }
+                else if (day < today) segment.Clear();
+            }
+        }
         return new(today, zone, Dates(start, end).Select(day =>
         {
             var items = sessions.Where(s => s.DataPresenca == day).Select(s => new SessaoDiaDto(s.Id, s.NomeTreino)).ToArray();
             var planned = Planned(day, routines);
             var state = items.Length > 0 ? "treinado" : config == null || day < config.Inicio ? "semPlanejamento"
                 : !planned ? "descanso" : day < today ? "falta" : day == today ? "planejadoHoje" : "planejadoFuturo";
-            return new DiaDto(day, state, planned, items);
+            return new DiaDto(day, state, planned, items, fire.Contains(day));
         }).ToArray());
     }
     public async Task<SemanaDto> SemanaAsync(DateOnly start, CancellationToken ct)

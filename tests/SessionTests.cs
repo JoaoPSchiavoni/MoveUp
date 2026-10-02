@@ -139,6 +139,8 @@ public class SessionTests : IDisposable
         (await client.DeleteAsync($"/api/exercicios/{exercise.Id}")).EnsureSuccessStatusCode();
         var afterDelete = (await client.GetFromJsonAsync<SessaoResponseDto>($"/api/sessoes/{session.Id}"))!;
         Assert.Null(afterDelete.TreinoId); Assert.Equal(2, afterDelete.Exercicios.Count);
+        Assert.Equal(exercise.Id, afterDelete.Exercicios[0].ExercicioOrigemId);
+        Assert.Equal(workout.Id, afterDelete.TreinoOrigemId);
         Assert.Equal(session.Id, (await Start(client, workout.Id, session.Id)).Id);
         await Record(client, session); await Finish(client, session.Id);
         Assert.Equal(exercise.Nome, (await client.GetFromJsonAsync<SessaoResponseDto>($"/api/sessoes/{session.Id}"))!.Exercicios[0].Nome);
@@ -248,6 +250,27 @@ public class SessionTests : IDisposable
             await db.Treinos.Where(w => w.Id == workout.Id).ExecuteUpdateAsync(setters => setters.SetProperty(w => w.Ativo, true));
         var session = await Start(client, workout.Id);
         Assert.Equal(HttpStatusCode.Conflict, (await client.PutAsJsonAsync($"/api/sessoes/{session.Id}", new IniciarSessaoDto(Guid.NewGuid()))).StatusCode);
+    }
+
+    [Fact]
+    public async Task PhaseThreeHistoryMigratesWithoutInventingExerciseOrigin()
+    {
+        Directory.CreateDirectory(directory);
+        var sessionId = Guid.NewGuid(); var exerciseId = Guid.NewGuid(); var setId = Guid.NewGuid();
+        var start = new DateTime(2026, 10, 1, 12, 0, 0, DateTimeKind.Utc);
+        await using (var db = new MoveUpDbContext(Options))
+        {
+            await db.GetService<IMigrator>().MigrateAsync("20261002135539_AddConsistency");
+            await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO SessoesTreino (Id, TreinoOrigemId, NomeTreino, Inicio, Fim, Status, DataPresenca, FusoPresenca) VALUES ({sessionId}, {Guid.Empty}, {"Legado"}, {start}, {start.AddMinutes(30)}, {"concluida"}, {new DateOnly(2026, 10, 1)}, {"UTC"})");
+            await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO SessaoExercicios (Id, SessaoTreinoId, Nome, GrupoMuscular, Ordem, TempoDescanso) VALUES ({exerciseId}, {sessionId}, {"Supino"}, {"Peito"}, {0}, {60})");
+            await db.Database.ExecuteSqlInterpolatedAsync($"INSERT INTO SeriesRealizadas (Id, SessaoExercicioId, Ordem, RepeticoesPlanejadas, CargaPlanejada, Repeticoes, Carga, Status, ConcluidaEm) VALUES ({setId}, {exerciseId}, {0}, {10}, {20d}, {8}, {25d}, {"concluida"}, {start.AddMinutes(1)})");
+        }
+        using var factory = Factory(); using var client = factory.CreateClient();
+        var session = (await client.GetFromJsonAsync<SessaoResponseDto>($"/api/sessoes/{sessionId}"))!;
+        Assert.Equal(200, session.Resumo.VolumeRegistrado);
+        Assert.Null(session.Exercicios.Single().ExercicioOrigemId);
+        Assert.Equal(new DateOnly(2026, 10, 1), session.DataPresenca);
+        Assert.Equal("UTC", session.FusoPresenca);
     }
 
     [Fact]

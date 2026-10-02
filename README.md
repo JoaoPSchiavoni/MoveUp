@@ -1,17 +1,70 @@
-# MoveUp — Back das fases 1 e 2
+# MoveUp | API de treinos e histórico
 
-API ASP.NET Core 10, Entity Framework Core e SQLite, integrada ao aplicativo
-Flutter em `../moveupapp`. O projeto já iniciado em C# foi completado mantendo as
-entidades `Treino`, `Exercicio` e `TreinoExercicio`.
+API REST em ASP.NET Core 10 para fichas de treino, sessões e acompanhamento de
+constância. O MoveUp compartilha este back-end com o
+[aplicativo Flutter](https://github.com/JoaoPSchiavoni/MoveUpApp), que também
+funciona com armazenamento local no celular.
+
+![Apresentação do MoveUp](MoveUp.png)
+
+## O projeto
+
+Este repositório contém o serviço HTTP e seu banco SQLite no servidor. Ele
+oferece catálogo e fichas de exercícios, registro de séries e histórico de
+sessões, calendário e métricas de consistência. Entity Framework Core e
+migrations mantêm o esquema do banco versionado. Os dados registrados são
+preservados como snapshots para que mudanças futuras em uma ficha não alterem
+o histórico do atleta.
+
+O serviço destina-se a desenvolvimento e uso local neste estágio. Ele ainda não
+implementa contas, autenticação ou separação dos dados por usuário. O app usa
+SQLite local por padrão; conectar o app a esta API é opcional. Consulte o
+[Front-end](https://github.com/JoaoPSchiavoni/MoveUpApp) para o aplicativo e
+sua [arquitetura e modos de armazenamento](https://github.com/JoaoPSchiavoni/MoveUpApp/blob/main/docs/local-product.md).
+
+## Executar localmente
+
+Requisitos: .NET 10 SDK. Na raiz do projeto:
+
+```sh
+cp .env.example .env # Na primeira configuração
+./scripts/run-local.sh
+```
+
+A API atende em `http://localhost:5013`. A inicialização aplica migrations
+pendentes e insere o catálogo inicial quando necessário. Verifique o serviço em
+`/health`; em Development, consulte o contrato OpenAPI em `/openapi/v1.json`.
+Os detalhes de conexão do aplicativo estão na seção [Executar](#executar).
+
+> `.env` e bancos locais não pertencem ao repositório. O `.env.example` contém
+> somente configurações de exemplo; mantenha segredos no ambiente privado.
+
+## Arquitetura
+
+```text
+MoveUp Flutter → API REST → Controllers → Services → Repositories → SQLite
+```
+
+As entidades `Treino`, `Exercicio` e `TreinoExercicio` compõem o catálogo e as
+fichas. Sessões mantêm uma cópia independente do treino feito; os serviços
+coordenam validação e transações, e os repositórios acessam SQLite.
+
+## Principais recursos
+
+- API para consultar, criar, editar e excluir fichas e exercícios.
+- Sessões idempotentes, registro de séries, pausa, retomada e histórico paginado.
+- Calendário, rotina, dias planejados, fuso horário e métricas de consistência.
+- Migrations incrementais e regras de integridade com SQLite.
+- Testes de integração com banco isolado e SQLite real.
 
 ## Arquitetura e limite desta entrega
 
 Flutter → ApiWorkoutGateway → Controllers → Services → Repositories → SQLite.
 
-O SQLite fica **na máquina da API**, em `App_Data/moveup.db`. O app precisa de
-conexão com a API; esta implementação não é armazenamento offline no celular.
-O plano inicial com Drift dentro do Flutter continua sendo uma arquitetura
-alternativa, não implementada aqui. A API é de uso local/de desenvolvimento,
+O SQLite fica **na máquina da API**, em `App_Data/moveup.db`. O modo remoto do app precisa de
+conexão com a API. O Flutter usa Drift/SQLite no aparelho por padrão, com
+backup e importação da API; veja a [arquitetura local do app](https://github.com/JoaoPSchiavoni/MoveUpApp/blob/main/docs/local-product.md). Este projeto
+continua sendo o armazenamento do servidor. A API é de uso local/de desenvolvimento,
 sem autenticação ou separação de dados por usuário nesta fase.
 
 ## Executar
@@ -23,8 +76,8 @@ cp .env.example .env # Apenas na primeira configuração
 ./scripts/run-local.sh
 ```
 
-A API atende em `http://localhost:5013`. A primeira inicialização aplica a migration
-`InitialCreate`, cria o banco e insere 12 exercícios. Inicializações seguintes
+A API atende em `http://localhost:5013`. A inicialização aplica as migrations pendentes, cria o banco e insere os
+12 exercícios do catálogo inicial quando necessário. Inicializações seguintes
 não duplicam nem sobrescrevem o catálogo. Alterações futuras de esquema devem
 usar novas migrations, sem apagar o banco.
 
@@ -37,15 +90,15 @@ bancos antigos criados com EnsureCreated precisam de migração de dados planeja
 No projeto Flutter:
 
 ```sh
-flutter run -d chrome --web-hostname localhost --web-port 5173
+flutter run -d chrome --dart-define=USE_REMOTE_API=true --web-hostname localhost --web-port 5173
 ```
 
-O app usa a API por padrão. No emulador Android, o endereço padrão é
+O app usa banco local por padrão. Ao ativar `USE_REMOTE_API=true`, usa esta API. No emulador Android, o endereço padrão é
 `http://10.0.2.2:5013`; nas outras plataformas, `http://localhost:5013`.
 Para endereço diferente:
 
 ```sh
-flutter run --dart-define=API_BASE_URL=https://seu-host
+flutter run --dart-define=USE_REMOTE_API=true --dart-define=API_BASE_URL=https://seu-host
 ```
 
 Para aparelho físico, configure uma API acessível ao aparelho; localhost é o
@@ -193,8 +246,8 @@ do catálogo também não altera a cópia histórica.
 | PUT | /api/sessoes/{id}/cancelamento | Cancela a sessão |
 | GET | /api/sessoes?pagina=1&tamanhoPagina=20&status=concluida | Histórico paginado |
 
-O contrato JSON completo, já consumido pelo Flutter, está em
-`../moveupapp/docs/phase-2-session-api.md`.
+O contrato JSON completo, já consumido pelo Flutter, está na
+[documentação de sessões](https://github.com/JoaoPSchiavoni/MoveUpApp/blob/main/docs/phase-2-session-api.md).
 
 ### Regras de execução
 
@@ -268,7 +321,30 @@ com SQLite isolado para frequência, rotina, meta, validações, fusos e reiníc
 O Flutter passa 21 testes, análise estática e compilação web. A integração real
 foi verificada com os adapters Dart e banco temporário vazio.
 
-Contrato e execução em `../moveupapp/docs/phase-3-consistency-plan.md`.
-O acompanhamento requer `USE_PREVIEW=false`; não há dados de demonstração
-misturados às métricas da API. O armazenamento offline no celular permanece
-fora desta entrega. Nenhum segredo adicional é necessário.
+Contrato e execução no [plano de calendário e consistência](https://github.com/JoaoPSchiavoni/MoveUpApp/blob/main/docs/phase-3-consistency-plan.md).
+O acompanhamento remoto requer `USE_REMOTE_API=true` e `USE_PREVIEW=false`.
+O modo padrão local possui acompanhamento equivalente sem API. Nenhum segredo
+adicional é necessário.
+
+
+## Expansão após o MVP — origem e OnFire
+
+A migration `PreserveExerciseIdentity` adiciona `ExercicioOrigemId` aos snapshots
+de exercícios. Novas sessões preservam o ID do catálogo mesmo após alterações ou
+exclusão da ficha/exercício. Sessões antigas mantêm `null`, sem associação inventada.
+As respostas de sessão incluem também `treinoOrigemId`, `dataPresenca` e
+`fusoPresenca`, permitindo importar o histórico para o SQLite do celular sem
+perder as datas já fixadas.
+
+O calendário passa a retornar `onFire` em cada dia: após cinco dias planejados
+cumpridos em sequência, os dias realizados do segmento ganham destaque. Descanso
+preserva a sequência; falta encerrada a quebra. Sessões duplicadas não inflam o
+contador. Segmentos históricos que alcançaram cinco permanecem destacados.
+
+`dotnet test tests/MoveUp.Tests.csproj` passa 23 testes. Os cenários adicionais
+verificam OnFire entre meses e a migração de histórico da fase 3 preservando
+resultados e datas, sem inventar identidade para exercícios legados. A preservação
+de origem após excluir ficha/catálogo também é verificada.
+
+Modelos, tema, ilustrações, gráficos, medidas e backup desta expansão ficam no
+Flutter e no banco local. Esta API não oferece contas nem sincronização automática.
