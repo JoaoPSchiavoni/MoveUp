@@ -25,5 +25,7 @@ public class SessaoTreino
     public DateTime? Fim { get; set; }
     public string Status { get; set; } = StatusSessao.EmAndamento;
     public string? Observacao { get; set; }
+    public DateOnly? DataPresenca { get; set; }
+    public string? FusoPresenca { get; set; }
     public ICollection<SessaoExercicio> Exercicios { get; set; } = new List<SessaoExercicio>();
 }

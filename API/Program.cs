@@ -18,6 +18,8 @@ builder.Services.AddScoped<ITreinoRepository, TreinoRepository>();
 builder.Services.AddScoped<IExercicioRepository, ExercicioRepository>();
 builder.Services.AddScoped<ISessaoRepository, SessaoRepository>();
 builder.Services.AddScoped<SessaoService>();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddScoped<AcompanhamentoService>();
 builder.Services.AddScoped<TreinoService>();
 builder.Services.AddScoped<ExercicioService>();
 builder.Services.AddControllers();

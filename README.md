@@ -230,3 +230,45 @@ fase 1 e rollback após falha forçada na criação da sessão.
 No Flutter, `tool/check_session_api.dart` verifica os adapters HTTP reais contra
 uma API de teste isolada. Ele cria e conclui uma sessão e remove sua ficha de
 origem; o histórico permanece no banco temporário. O banco pessoal não é usado.
+
+## Fase 3 — calendário e consistência
+
+BACK-20 a BACK-27 implementadas e integradas ao Flutter (FRONT-19 a FRONT-26).
+A migration `AddConsistency` preserva fichas, catálogo e sessões, adicionando
+preferências de acompanhamento, revisões da rotina/meta e data/fuso de presença.
+
+- Na Home ou Calendário, confirme os dias planejados, o fuso IANA e uma meta
+  semanal entre 1 e 7 dias. Fichas ativas sugerem a configuração inicial.
+- A primeira ativação classifica o histórico no fuso escolhido, sem presumir
+  faltas antigas. Novas sessões fixam sua data local ao iniciar o treino.
+- Somente sessões concluídas com alguma série realizada contam como presença.
+  Duas sessões no mesmo dia contam um dia treinado, mantendo ambas nos detalhes.
+- Descanso não quebra a sequência; treinos extras contam para a meta, sem
+  aumentar a sequência de dias planejados. Hoje só vira falta após encerrar.
+- Mudanças de rotina valem a partir do dia seguinte; metas, da próxima segunda.
+  As revisões preservam o passado. Mudar o fuso não move presenças antigas nem
+  antecipa revisões futuras já agendadas.
+- O resumo semanal apresenta dias, sessões, duração, volume e adesão aos dias
+  planejados já encerrados. Sem denominador, adesão é nula.
+
+| Método | Rota | Resultado |
+|---|---|---|
+| GET/PUT | /api/acompanhamento/configuracao | Preferências, rotina/meta e revisões com vigência |
+| GET | /api/acompanhamento/calendario?ano=2026&mes=10 | Datas classificadas e referências das sessões |
+| GET | /api/acompanhamento/painel | Semana/mês atuais, sequência atual e melhor |
+| GET | /api/acompanhamento/semanas?inicio=2026-09-28 | Resumo da semana iniciada nessa segunda-feira |
+
+Datas de calendário/vigência usam `YYYY-MM-DD`. Horários de sessão continuam UTC.
+O Back calcula as métricas usando `TimeProvider` e o fuso configurado. As consultas
+por mês/semana projetam dados do período; a sequência usa datas distintas de
+presença e versões da rotina, sem carregar todas as séries do histórico.
+
+`dotnet test tests/MoveUp.Tests.csproj` passa 21 testes, incluindo 6 cenários novos
+com SQLite isolado para frequência, rotina, meta, validações, fusos e reinício.
+O Flutter passa 21 testes, análise estática e compilação web. A integração real
+foi verificada com os adapters Dart e banco temporário vazio.
+
+Contrato e execução em `../moveupapp/docs/phase-3-consistency-plan.md`.
+O acompanhamento requer `USE_PREVIEW=false`; não há dados de demonstração
+misturados às métricas da API. O armazenamento offline no celular permanece
+fora desta entrega. Nenhum segredo adicional é necessário.

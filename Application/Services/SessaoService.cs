@@ -4,7 +4,7 @@ using MoveUp.Entities;
 
 namespace MoveUp.Application.Services;
 
-public class SessaoService(ISessaoRepository sessions, ITreinoRepository workouts)
+public class SessaoService(ISessaoRepository sessions, ITreinoRepository workouts, AcompanhamentoService consistency)
 {
     private async Task<SessaoTreino> Required(Guid id, CancellationToken ct) =>
         await sessions.ObterAsync(id, ct) ?? throw new ApiException(404, "Sessão não encontrada.");
@@ -49,6 +49,7 @@ public class SessaoService(ISessaoRepository sessions, ITreinoRepository workout
                 throw new ApiException(400, "Uma sessão pode conter até 1000 séries.");
             var session = new SessaoTreino { Id = id, TreinoId = workout.Id, TreinoOrigemId = workout.Id,
                 NomeTreino = workout.Nome, Inicio = DateTime.UtcNow };
+            await consistency.AssignDateAsync(session, ct);
             foreach (var item in workout.TreinoExercicios.OrderBy(e => e.Ordem))
             {
                 var exercise = new SessaoExercicio { SessaoTreinoId = id, Nome = item.Exercicio!.Nome,
