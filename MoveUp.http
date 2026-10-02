@@ -27,3 +27,19 @@ Content-Type: application/json
 
 ###
 DELETE {{MoveUp_HostAddress}}/api/treinos/11111111-1111-4111-8111-111111111111
+
+
+### Sessão ativa (204 se não houver)
+GET {{MoveUp_HostAddress}}/api/sessoes/ativa
+
+### Iniciar sessão após criar a ficha acima
+PUT {{MoveUp_HostAddress}}/api/sessoes/22222222-2222-4222-8222-222222222222
+Content-Type: application/json
+
+{ "treinoId": "11111111-1111-4111-8111-111111111111" }
+
+### Consultar os IDs das séries da sessão
+GET {{MoveUp_HostAddress}}/api/sessoes/22222222-2222-4222-8222-222222222222
+
+### Histórico
+GET {{MoveUp_HostAddress}}/api/sessoes?pagina=1&tamanhoPagina=20&status=concluida

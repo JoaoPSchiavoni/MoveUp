@@ -16,6 +16,8 @@ var connection = new SqliteConnectionStringBuilder { DataSource = databasePath, 
 builder.Services.AddDbContext<MoveUpDbContext>(options => options.UseSqlite(connection.ToString()));
 builder.Services.AddScoped<ITreinoRepository, TreinoRepository>();
 builder.Services.AddScoped<IExercicioRepository, ExercicioRepository>();
+builder.Services.AddScoped<ISessaoRepository, SessaoRepository>();
+builder.Services.AddScoped<SessaoService>();
 builder.Services.AddScoped<TreinoService>();
 builder.Services.AddScoped<ExercicioService>();
 builder.Services.AddControllers();
@@ -32,6 +34,8 @@ app.UseExceptionHandler(handler => handler.Run(async context =>
     var status = exception switch
     {
         ApiException error => error.Status,
+        DbUpdateConcurrencyException => 409,
+        SqliteException { SqliteErrorCode: 5 or 6 } => 409,
         DbUpdateException { InnerException: SqliteException { SqliteErrorCode: 19 } } => 409,
         _ => 500
     };

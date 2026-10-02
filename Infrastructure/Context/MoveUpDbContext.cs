@@ -10,8 +10,13 @@ public class MoveUpDbContext(DbContextOptions<MoveUpDbContext> options) : DbCont
     public DbSet<Exercicio> Exercicios => Set<Exercicio>();
     public DbSet<TreinoExercicio> TreinoExercicios => Set<TreinoExercicio>();
 
+    public DbSet<SessaoTreino> SessoesTreino => Set<SessaoTreino>();
+    public DbSet<SessaoExercicio> SessaoExercicios => Set<SessaoExercicio>();
+    public DbSet<SerieRealizada> SeriesRealizadas => Set<SerieRealizada>();
+
     protected override void OnModelCreating(ModelBuilder model)
     {
+        SessionModel.Configure(model);
         model.Entity<Treino>(entity =>
         {
             entity.Property(x => x.Nome).HasMaxLength(120).IsRequired();

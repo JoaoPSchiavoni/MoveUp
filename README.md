@@ -1,4 +1,4 @@
-# MoveUp — Back da fase 1
+# MoveUp — Back das fases 1 e 2
 
 API ASP.NET Core 10, Entity Framework Core e SQLite, integrada ao aplicativo
 Flutter em `../moveupapp`. O projeto já iniciado em C# foi completado mantendo as
@@ -161,3 +161,72 @@ O `.env.example` contém somente valores públicos de exemplo. Senhas, tokens e
 chaves de serviços futuros devem ficar no ambiente do servidor ou no `.env`
 local, nunca nos arquivos versionados. Não compartilhe o conteúdo do `.env`.
 Bancos locais, certificados e arquivos de assinatura também estão ignorados.
+
+## Fase 2 — execução e histórico de treinos
+
+BACK-12 a BACK-19 concluídas. O Front pode usar o modo API (`USE_PREVIEW=false`)
+para executar sessões com persistência. A migration `AddTrainingSessions` é
+aplicada ao iniciar a API e mantém as fichas e o catálogo existentes.
+
+### Modelo
+
+- `SessaoTreino`: ID do cliente, vínculo opcional com a ficha, ID original para
+  idempotência, nome copiado, início/fim UTC, status e observação.
+- `SessaoExercicio`: nome, grupo, ordem e descanso copiados no início. Não depende
+  do registro atual do catálogo.
+- `SerieRealizada`: ordem, carga/repetições planejadas e realizadas, status e
+  horário da conclusão.
+
+A exclusão da ficha apenas limpa o vínculo opcional da sessão (`SET NULL`).
+Nomes, exercícios e resultados anteriores permanecem. Editar ou excluir exercícios
+do catálogo também não altera a cópia histórica.
+
+### Rotas
+
+| Método | Rota | Comportamento |
+|---|---|---|
+| GET | /api/sessoes/ativa | Sessão completa ou 204 se não houver ativa |
+| GET | /api/sessoes/{id} | Consulta com exercícios, séries e resumo |
+| PUT | /api/sessoes/{id} | Inicia com `{ "treinoId": "uuid" }` |
+| PUT | /api/sessoes/{id}/series/{serieId} | Registra, pula ou reabre uma série |
+| PUT | /api/sessoes/{id}/conclusao | Finaliza com observação opcional |
+| PUT | /api/sessoes/{id}/cancelamento | Cancela a sessão |
+| GET | /api/sessoes?pagina=1&tamanhoPagina=20&status=concluida | Histórico paginado |
+
+O contrato JSON completo, já consumido pelo Flutter, está em
+`../moveupapp/docs/phase-2-session-api.md`.
+
+### Regras de execução
+
+- Apenas uma sessão ativa por vez no MVP individual. Um índice único filtrado
+  no banco protege essa regra inclusive sob requisições simultâneas.
+- Início copia a ficha em uma transação. Repetir o mesmo UUID retorna a mesma
+  sessão e os mesmos IDs de exercícios/séries; reutilizar para outra ficha dá 409.
+- Sessão: `emAndamento`, `concluida` ou `cancelada`.
+- Série: `pendente`, `concluida` ou `pulada`.
+- Concluir série exige repetições inteiras positivas e carga finita não negativa.
+  Volume que excederia a capacidade numérica é rejeitado. Zero kg é permitido.
+- Pular/reabrir série exige resultados nulos e preserva o planejamento. Repetir
+  uma gravação idêntica não altera o horário de conclusão.
+- Só é possível finalizar com pelo menos uma série concluída. As séries restantes
+  são marcadas como puladas. Observação opcional até 2000 caracteres.
+- Conclusão/cancelamento repetidos retornam o mesmo encerramento. Não é permitido
+  alterar séries encerradas, cancelar sessão concluída ou concluir cancelada.
+- Transações serializam as alterações de séries e encerramento, impedindo salvar
+  resultados depois da conclusão. Falhas revertem toda a operação.
+- Histórico contém somente concluídas, em ordem decrescente de início e ID.
+  Tamanho de página entre 1 e 100; sessão com até 1000 séries.
+- Resumo: duração em segundos entre início/fim, exercícios com séries concluídas,
+  contagem de concluídas/puladas e soma de carga × repetições realizadas.
+
+### Validação da fase 2
+
+`dotnet test tests/MoveUp.Tests.csproj` executa 15 testes (6 da fase 1 e 9 da fase 2),
+com bancos temporários. Cobertura: fluxo completo, reabertura/pulo de séries,
+validações, pertencimento de séries, tentativas repetidas, concorrência, retomada
+após reinício, histórico, preservação após excluir ficha/catálogo, migração da
+fase 1 e rollback após falha forçada na criação da sessão.
+
+No Flutter, `tool/check_session_api.dart` verifica os adapters HTTP reais contra
+uma API de teste isolada. Ele cria e conclui uma sessão e remove sua ficha de
+origem; o histórico permanece no banco temporário. O banco pessoal não é usado.
